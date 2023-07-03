@@ -59,27 +59,33 @@ module Attempt1
       Map.change key (fun x ->
                         match x with
                         | Some x -> Some (x - n)
+                        | None -> None)
+   
+   let incrementMapValue key n =
+      Map.change key (fun x ->
+                        match x with
+                        | Some x -> Some (x + n)
                         | None -> None) 
       
    let nestPipes (input : Map<int, int>) =
-
-      let (startPipeDiameter, count) = input |> Map.toList |> List.minBy snd
+      
+      let (startPipeDiameter, count) = input |> Map.toList |> List.minBy fst
       let mutable tree = List.empty
       
       for i in 0..count do
          tree <- {Diameter = startPipeDiameter ; Children = List.empty}::tree
-    
+
       let nodesWithoutParents = Map.empty |> Map.add startPipeDiameter count
       let pipesList = input |> Map.remove startPipeDiameter
-            
+      
       let rec inner tree pipeList nodesWithoutParents =
-         if pipeList = Map.empty then tree
+         printfn $"{tree}"
+         if nodesWithoutParents = Map.empty then tree
          else
-            let diameter, count = nextNode nodesWithoutParents    
+            let diameter, count = nextNode nodesWithoutParents
             let biggerPipe = findBiggerPipe pipeList diameter
-            
             if (biggerPipe = None) then
-               let newNodesWithoutParents = nodesWithoutParents |> decrementMapValue diameter count
+               let newNodesWithoutParents = nodesWithoutParents |> decrementMapValue diameter count |> Map.filter (fun k v -> v > 0) 
                inner tree pipeList newNodesWithoutParents   
             else 
                let Diameter =
@@ -91,9 +97,15 @@ module Attempt1
    
                let newTree = {Diameter = Diameter ; Children = children} :: tree
                let newPipeList = pipeList |> decrementMapValue Diameter 1
-               let newNodesWithoutParents = nodesWithoutParents |> decrementMapValue diameter (children.Length)
-      
-               inner newTree newPipeList newNodesWithoutParents
+               let newNodesWithoutParents =
+                  if (nodesWithoutParents |> Map.containsKey Diameter) then
+                     nodesWithoutParents |> incrementMapValue Diameter 1
+                  else
+                     nodesWithoutParents |> Map.add Diameter 1
+               
+               let withoutParents = newNodesWithoutParents |> decrementMapValue diameter (children.Length) |> Map.filter (fun k v -> v > 0)                             
+                                               
+               inner newTree newPipeList  withoutParents
                  
       let answer = inner tree pipesList nodesWithoutParents
-      printfn $"{answer[0]}"
+      answer
